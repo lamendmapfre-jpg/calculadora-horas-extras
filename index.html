@@ -23,7 +23,7 @@ body{
     grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
     gap:15px;
 }
-input,select,button{
+select,input,button{
     padding:8px;
 }
 button{
@@ -32,23 +32,11 @@ button{
     border:none;
     cursor:pointer;
 }
-button:hover{
-    background:#1d4ed8;
-}
+button:hover{ background:#1d4ed8; }
 .resultado{
     margin-top:15px;
     font-weight:bold;
     font-size:18px;
-}
-table{
-    width:100%;
-    margin-top:20px;
-    border-collapse:collapse;
-}
-th,td{
-    border:1px solid #ddd;
-    padding:8px;
-    text-align:center;
 }
 </style>
 </head>
@@ -56,18 +44,13 @@ th,td{
 
 <div class="container">
 
-<h2>Calculadora Profesional de Horas Extras</h2>
+<h2>Calculadora Horas Extras</h2>
 
 <div class="grid">
 
 <div>
 <label>Salario Mensual</label>
 <input type="number" id="salario" value="29000">
-</div>
-
-<div>
-<label>Fecha</label>
-<input type="date" id="fecha">
 </div>
 
 <div>
@@ -78,152 +61,89 @@ th,td{
 </select>
 </div>
 
-<div>
-<label>Hora Inicio</label>
-<input type="time" id="inicio">
 </div>
 
-<div>
-<label>Hora Fin</label>
-<input type="time" id="fin">
-</div>
+<h3>Hora Inicio</h3>
+<select id="inicioHora"></select>
+<select id="inicioMin"></select>
+<select id="inicioAmPm">
+<option>AM</option>
+<option>PM</option>
+</select>
 
-</div>
+<h3>Hora Fin</h3>
+<select id="finHora"></select>
+<select id="finMin"></select>
+<select id="finAmPm">
+<option>AM</option>
+<option>PM</option>
+</select>
 
-<br>
+<br><br>
 <button onclick="calcular()">Calcular</button>
-<button onclick="guardar()">Guardar</button>
 
 <div class="resultado" id="resultado"></div>
-
-<h3>Historial</h3>
-
-<table>
-<thead>
-<tr>
-<th>Fecha</th>
-<th>Horas</th>
-<th>Tipo</th>
-<th>Monto</th>
-<th></th>
-</tr>
-</thead>
-<tbody id="tabla"></tbody>
-</table>
 
 </div>
 
 <script>
 
-let ultimoCalculo = null;
-
-function horaOrdinaria(salario){
-    return salario / (23.83 * 8);
+// Generar horas 1-12
+for(let i=1;i<=12;i++){
+inicioHora.innerHTML+=`<option value="${i}">${i}</option>`;
+finHora.innerHTML+=`<option value="${i}">${i}</option>`;
 }
 
-function calcularHoras(inicio, fin){
-    let i = new Date("1970-01-01T" + inicio);
-    let f = new Date("1970-01-01T" + fin);
-
-    if(f < i){
-        f.setDate(f.getDate() + 1); // cruza medianoche
-    }
-
-    return (f - i) / (1000 * 60 * 60);
+// Generar minutos
+for(let i=0;i<60;i++){
+let m=i.toString().padStart(2,"0");
+inicioMin.innerHTML+=`<option value="${m}">${m}</option>`;
+finMin.innerHTML+=`<option value="${m}">${m}</option>`;
 }
 
-function formatoRD(v){
-    return v.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
+function convertir24(h,m,ampm){
+h=parseInt(h);
+if(ampm==="PM" && h<12) h+=12;
+if(ampm==="AM" && h===12) h=0;
+return `${h.toString().padStart(2,"0")}:${m}:00`;
+}
+
+function horaOrdinaria(s){
+return s/(23.83*8);
 }
 
 function calcular(){
 
-    let salario = parseFloat(document.getElementById("salario").value);
-    let inicio = document.getElementById("inicio").value;
-    let fin = document.getElementById("fin").value;
-    let tipo = parseFloat(document.getElementById("tipo").value);
+let salario=parseFloat(document.getElementById("salario").value);
+let tipo=parseFloat(document.getElementById("tipo").value);
 
-    if(!inicio || !fin){
-        alert("Seleccione horas válidas");
-        return;
-    }
+let inicio=convertir24(
+inicioHora.value,
+inicioMin.value,
+inicioAmPm.value
+);
 
-    let horas = calcularHoras(inicio, fin);
+let fin=convertir24(
+finHora.value,
+finMin.value,
+finAmPm.value
+);
 
-    if(horas <= 0){
-        alert("Horas inválidas");
-        return;
-    }
+let i=new Date("1970-01-01T"+inicio);
+let f=new Date("1970-01-01T"+fin);
 
-    let valorHora = horaOrdinaria(salario);
-    let valorExtra = valorHora * tipo;
-    let total = horas * valorExtra;
-
-    ultimoCalculo = {
-        horas,
-        tipoTexto: tipo === 1.35 ? "Regular" : "Doble",
-        total
-    };
-
-    document.getElementById("resultado").innerText =
-        "Horas: " + horas.toFixed(2) +
-        " | Total a pagar: " + formatoRD(total);
+if(f<i){
+f.setDate(f.getDate()+1);
 }
 
-function guardar(){
+let horas=(f-i)/(1000*60*60);
 
-    if(!ultimoCalculo){
-        alert("Primero calcule");
-        return;
-    }
+let total=horas*horaOrdinaria(salario)*tipo;
 
-    let fecha = document.getElementById("fecha").value;
-
-    if(!fecha){
-        alert("Seleccione fecha");
-        return;
-    }
-
-    let datos = JSON.parse(localStorage.getItem("datos")) || [];
-
-    datos.push({
-        id: Date.now(),
-        fecha,
-        horas: ultimoCalculo.horas,
-        tipo: ultimoCalculo.tipoTexto,
-        total: ultimoCalculo.total
-    });
-
-    localStorage.setItem("datos", JSON.stringify(datos));
-    mostrarHistorial();
+document.getElementById("resultado").innerText=
+"Horas trabajadas: "+horas.toFixed(2)+
+" | Total: "+total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
 }
-
-function eliminar(id){
-    let datos = JSON.parse(localStorage.getItem("datos")) || [];
-    datos = datos.filter(r => r.id !== id);
-    localStorage.setItem("datos", JSON.stringify(datos));
-    mostrarHistorial();
-}
-
-function mostrarHistorial(){
-
-    let datos = JSON.parse(localStorage.getItem("datos")) || [];
-    let tabla = document.getElementById("tabla");
-    tabla.innerHTML = "";
-
-    datos.forEach(r=>{
-        tabla.innerHTML += `
-        <tr>
-        <td>${r.fecha}</td>
-        <td>${r.horas.toFixed(2)}</td>
-        <td>${r.tipo}</td>
-        <td>${formatoRD(r.total)}</td>
-        <td><button onclick="eliminar(${r.id})">Eliminar</button></td>
-        </tr>`;
-    });
-}
-
-mostrarHistorial();
 
 </script>
 
