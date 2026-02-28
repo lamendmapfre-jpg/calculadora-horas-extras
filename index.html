@@ -3,72 +3,102 @@
 <head>
 <meta charset="UTF-8">
 <title>Calculadora Profesional de Horas Extras</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
-    font-family: Arial;
-    background:#f2f4f7;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg,#1f2937,#111827);
+    margin:0;
     padding:20px;
+    color:#111;
 }
 .container{
-    max-width:1000px;
+    max-width:1200px;
     margin:auto;
     background:white;
-    padding:20px;
-    border-radius:10px;
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.2);
 }
-h2,h3{margin-top:0}
-
+h2{
+    margin-top:0;
+    color:#1f2937;
+}
 .grid{
     display:grid;
-    grid-template-columns: repeat(2,1fr);
-    gap:10px;
-}
-
-input, select, button{
-    padding:8px;
-    width:100%;
-}
-
-button{
-    cursor:pointer;
-}
-
-.dashboard{
-    display:flex;
+    grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
     gap:15px;
-    margin:20px 0;
 }
-
+label{
+    font-size:14px;
+    font-weight:600;
+}
+input,select,button{
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+button{
+    background:#2563eb;
+    color:white;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+}
+button:hover{
+    background:#1d4ed8;
+}
+.dashboard{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
+    margin:25px 0;
+}
 .card{
-    flex:1;
-    background:#e9eef5;
     padding:15px;
-    border-radius:8px;
+    border-radius:10px;
+    background:#f3f4f6;
     text-align:center;
 }
-
+.card h3{
+    margin:5px 0;
+    font-size:16px;
+}
+.card div{
+    font-size:20px;
+    font-weight:bold;
+}
 table{
     width:100%;
     border-collapse:collapse;
-    margin-top:10px;
 }
-
-th, td{
-    border:1px solid #ccc;
-    padding:8px;
+th,td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
     text-align:center;
 }
-
 th{
-    background:#f0f0f0;
+    background:#f9fafb;
+}
+.delete-btn{
+    background:#dc2626;
+}
+.delete-btn:hover{
+    background:#b91c1c;
+}
+.actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:15px;
 }
 </style>
 </head>
 <body>
 
 <div class="container">
-<h2>Calculadora de Horas Extras</h2>
+<h2>Calculadora Profesional de Horas Extras</h2>
 
 <div class="grid">
 
@@ -83,29 +113,21 @@ th{
 </div>
 
 <div>
+<label>Tipo</label>
+<select id="tipo">
+<option value="1.35">Extra Regular (35%)</option>
+<option value="2">Extra Doble (100%)</option>
+</select>
+</div>
+
+<div>
 <label>Hora Inicio</label>
 <input type="time" id="inicio">
-<select id="inicioAmPm">
-<option>AM</option>
-<option>PM</option>
-</select>
 </div>
 
 <div>
 <label>Hora Fin</label>
 <input type="time" id="fin">
-<select id="finAmPm">
-<option>AM</option>
-<option>PM</option>
-</select>
-</div>
-
-<div>
-<label>Tipo</label>
-<select id="tipo">
-<option value="1.35">Extra Regular 35%</option>
-<option value="2">Extra Doble 100%</option>
-</select>
 </div>
 
 <div>
@@ -115,14 +137,20 @@ th{
 
 </div>
 
-<br>
+<div class="actions">
 <button onclick="guardar()">Guardar Registro</button>
-<button onclick="exportarExcel()">Exportar a Excel</button>
+<button onclick="exportarExcel()">Exportar Excel</button>
+</div>
 
 <div class="dashboard">
 <div class="card">
 <h3>Total a Pagar</h3>
 <div id="totalPagar">RD$ 0.00</div>
+</div>
+
+<div class="card">
+<h3>Total Horas</h3>
+<div id="totalHoras">0</div>
 </div>
 
 <div class="card">
@@ -142,10 +170,12 @@ th{
 <thead>
 <tr>
 <th>Fecha</th>
+<th>Desde</th>
+<th>Hasta</th>
 <th>Horas</th>
 <th>Tipo</th>
 <th>Monto</th>
-<th>Acción</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="tabla"></tbody>
@@ -155,112 +185,109 @@ th{
 
 <script>
 
-function formatoRD(valor){
-    return valor.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
+function formatoRD(v){
+    return v.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
 }
 
-function horaOrdinaria(salario){
-    return salario/(23.83*8);
-}
-
-function convertir24(hora, ampm){
-    let [h,m]=hora.split(":");
-    h=parseInt(h);
-    if(ampm==="PM" && h<12) h+=12;
-    if(ampm==="AM" && h===12) h=0;
-    return h+":"+m;
+function horaOrdinaria(s){
+    return s/(23.83*8);
 }
 
 function calcularHoras(inicio,fin){
     let i=new Date("1970-01-01T"+inicio);
     let f=new Date("1970-01-01T"+fin);
-    let diff=(f-i)/(1000*60*60);
-    return diff>0?diff:0;
+    if(f<i) f.setDate(f.getDate()+1); // cruza medianoche
+    return (f-i)/(1000*60*60);
 }
 
 function guardar(){
 
     let salario=parseFloat(document.getElementById("salario").value);
     let fecha=document.getElementById("fecha").value;
-    let inicio=convertir24(
-        document.getElementById("inicio").value,
-        document.getElementById("inicioAmPm").value
-    );
-    let fin=convertir24(
-        document.getElementById("fin").value,
-        document.getElementById("finAmPm").value
-    );
+    let inicio=document.getElementById("inicio").value;
+    let fin=document.getElementById("fin").value;
     let tipo=parseFloat(document.getElementById("tipo").value);
 
-    if(!fecha||!inicio||!fin){ alert("Complete los campos"); return; }
+    if(!fecha || !inicio || !fin){
+        alert("Complete todos los campos");
+        return;
+    }
 
     let horas=calcularHoras(inicio,fin);
-    let valorHora=horaOrdinaria(salario)*tipo;
-    let total=horas*valorHora;
 
-    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+    if(horas<=0){
+        alert("Horas inválidas");
+        return;
+    }
 
-    historial.push({
+    let total=horas*horaOrdinaria(salario)*tipo;
+
+    let datos=JSON.parse(localStorage.getItem("datos"))||[];
+
+    datos.push({
         id:Date.now(),
         fecha,
-        horas:horas,
+        inicio,
+        fin,
+        horas,
         tipo:tipo===1.35?"Regular":"Doble",
-        total:total
+        total
     });
 
-    localStorage.setItem("datos",JSON.stringify(historial));
+    localStorage.setItem("datos",JSON.stringify(datos));
     mostrarHistorial();
 }
 
 function eliminar(id){
-    let historial=JSON.parse(localStorage.getItem("datos"))||[];
-    historial=historial.filter(r=>r.id!==id);
-    localStorage.setItem("datos",JSON.stringify(historial));
+    let datos=JSON.parse(localStorage.getItem("datos"))||[];
+    datos=datos.filter(r=>r.id!==id);
+    localStorage.setItem("datos",JSON.stringify(datos));
     mostrarHistorial();
 }
 
 function mostrarHistorial(){
 
     let filtro=document.getElementById("filtroMes").value;
-    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+    let datos=JSON.parse(localStorage.getItem("datos"))||[];
     let tabla=document.getElementById("tabla");
     tabla.innerHTML="";
 
-    let total=0, reg=0, dob=0;
+    let total=0,reg=0,dob=0,totalHoras=0;
 
-    historial.forEach(r=>{
+    datos.forEach(r=>{
 
         if(filtro && !r.fecha.startsWith(filtro)) return;
 
         total+=r.total;
+        totalHoras+=r.horas;
         if(r.tipo==="Regular") reg+=r.horas;
         else dob+=r.horas;
 
         tabla.innerHTML+=`
         <tr>
         <td>${r.fecha}</td>
+        <td>${r.inicio}</td>
+        <td>${r.fin}</td>
         <td>${r.horas.toFixed(2)}</td>
         <td>${r.tipo}</td>
         <td>${formatoRD(r.total)}</td>
-        <td><button onclick="eliminar(${r.id})">Eliminar</button></td>
+        <td><button class="delete-btn" onclick="eliminar(${r.id})">Eliminar</button></td>
         </tr>`;
     });
 
     document.getElementById("totalPagar").innerText=formatoRD(total);
     document.getElementById("totalRegular").innerText=reg.toFixed(2);
     document.getElementById("totalDoble").innerText=dob.toFixed(2);
+    document.getElementById("totalHoras").innerText=totalHoras.toFixed(2);
 }
 
 function exportarExcel(){
-
-    let historial=JSON.parse(localStorage.getItem("datos"))||[];
-    let contenido="Fecha,Horas,Tipo,Monto\n";
-
-    historial.forEach(r=>{
-        contenido+=`${r.fecha},${r.horas},${r.tipo},${r.total}\n`;
+    let datos=JSON.parse(localStorage.getItem("datos"))||[];
+    let csv="Fecha,Desde,Hasta,Horas,Tipo,Monto\n";
+    datos.forEach(r=>{
+        csv+=`${r.fecha},${r.inicio},${r.fin},${r.horas},${r.tipo},${r.total}\n`;
     });
-
-    let blob=new Blob([contenido],{type:"text/csv;charset=utf-8;"});
+    let blob=new Blob([csv],{type:"text/csv"});
     let link=document.createElement("a");
     link.href=URL.createObjectURL(blob);
     link.download="horas_extras.csv";
