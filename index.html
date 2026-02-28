@@ -2,16 +2,67 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Calculadora de Horas Extras</title>
+<title>Calculadora Profesional de Horas Extras</title>
+
 <style>
-body { font-family: Arial; background:#f4f4f4; padding:20px; }
-.container { background:white; padding:20px; border-radius:8px; max-width:700px; margin:auto; }
-h2 { margin-top:0; }
-input, select, button { padding:6px; margin:5px 0; width:100%; }
-table { width:100%; border-collapse: collapse; margin-top:15px; }
-th, td { border:1px solid #ccc; padding:8px; text-align:center; }
-button { cursor:pointer; }
-.total { font-weight:bold; margin-top:10px; }
+body{
+    font-family: Arial;
+    background:#f2f4f7;
+    padding:20px;
+}
+.container{
+    max-width:1000px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+}
+h2,h3{margin-top:0}
+
+.grid{
+    display:grid;
+    grid-template-columns: repeat(2,1fr);
+    gap:10px;
+}
+
+input, select, button{
+    padding:8px;
+    width:100%;
+}
+
+button{
+    cursor:pointer;
+}
+
+.dashboard{
+    display:flex;
+    gap:15px;
+    margin:20px 0;
+}
+
+.card{
+    flex:1;
+    background:#e9eef5;
+    padding:15px;
+    border-radius:8px;
+    text-align:center;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+
+th, td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:center;
+}
+
+th{
+    background:#f0f0f0;
+}
 </style>
 </head>
 <body>
@@ -19,27 +70,74 @@ button { cursor:pointer; }
 <div class="container">
 <h2>Calculadora de Horas Extras</h2>
 
+<div class="grid">
+
+<div>
 <label>Salario Mensual</label>
 <input type="number" id="salario" value="29000">
+</div>
 
+<div>
 <label>Fecha</label>
 <input type="date" id="fecha">
+</div>
 
+<div>
 <label>Hora Inicio</label>
 <input type="time" id="inicio">
+<select id="inicioAmPm">
+<option>AM</option>
+<option>PM</option>
+</select>
+</div>
 
+<div>
 <label>Hora Fin</label>
 <input type="time" id="fin">
-
-<label>Tipo de Hora</label>
-<select id="tipo">
-<option value="1.35">Extra Regular (35%)</option>
-<option value="2">Extra Doble (100%)</option>
+<select id="finAmPm">
+<option>AM</option>
+<option>PM</option>
 </select>
+</div>
 
-<button onclick="calcular()">Calcular y Guardar</button>
+<div>
+<label>Tipo</label>
+<select id="tipo">
+<option value="1.35">Extra Regular 35%</option>
+<option value="2">Extra Doble 100%</option>
+</select>
+</div>
+
+<div>
+<label>Filtrar por Mes</label>
+<input type="month" id="filtroMes" onchange="mostrarHistorial()">
+</div>
+
+</div>
+
+<br>
+<button onclick="guardar()">Guardar Registro</button>
+<button onclick="exportarExcel()">Exportar a Excel</button>
+
+<div class="dashboard">
+<div class="card">
+<h3>Total a Pagar</h3>
+<div id="totalPagar">RD$ 0.00</div>
+</div>
+
+<div class="card">
+<h3>Horas Regulares</h3>
+<div id="totalRegular">0</div>
+</div>
+
+<div class="card">
+<h3>Horas Dobles</h3>
+<div id="totalDoble">0</div>
+</div>
+</div>
 
 <h3>Historial</h3>
+
 <table>
 <thead>
 <tr>
@@ -47,86 +145,130 @@ button { cursor:pointer; }
 <th>Horas</th>
 <th>Tipo</th>
 <th>Monto</th>
+<th>Acción</th>
 </tr>
 </thead>
-<tbody id="historial"></tbody>
+<tbody id="tabla"></tbody>
 </table>
-
-<div class="total" id="total"></div>
-<button onclick="limpiarHistorial()">Limpiar Historial</button>
 
 </div>
 
 <script>
-function obtenerHoraOrdinaria(salario){
-    return salario / (23.83 * 8);
+
+function formatoRD(valor){
+    return valor.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
 }
 
-function calcularHoras(inicio, fin){
-    const inicioDate = new Date("1970-01-01T" + inicio);
-    const finDate = new Date("1970-01-01T" + fin);
-    let diferencia = (finDate - inicioDate) / (1000 * 60 * 60);
-    return diferencia > 0 ? diferencia : 0;
+function horaOrdinaria(salario){
+    return salario/(23.83*8);
 }
 
-function calcular(){
-    const salario = parseFloat(document.getElementById("salario").value);
-    const fecha = document.getElementById("fecha").value;
-    const inicio = document.getElementById("inicio").value;
-    const fin = document.getElementById("fin").value;
-    const tipo = parseFloat(document.getElementById("tipo").value);
+function convertir24(hora, ampm){
+    let [h,m]=hora.split(":");
+    h=parseInt(h);
+    if(ampm==="PM" && h<12) h+=12;
+    if(ampm==="AM" && h===12) h=0;
+    return h+":"+m;
+}
 
-    if(!fecha || !inicio || !fin){
-        alert("Complete todos los campos");
-        return;
-    }
+function calcularHoras(inicio,fin){
+    let i=new Date("1970-01-01T"+inicio);
+    let f=new Date("1970-01-01T"+fin);
+    let diff=(f-i)/(1000*60*60);
+    return diff>0?diff:0;
+}
 
-    const horaOrdinaria = obtenerHoraOrdinaria(salario);
-    const horasTrabajadas = calcularHoras(inicio, fin);
-    const valorHoraExtra = horaOrdinaria * tipo;
-    const total = horasTrabajadas * valorHoraExtra;
+function guardar(){
 
-    const registro = {
+    let salario=parseFloat(document.getElementById("salario").value);
+    let fecha=document.getElementById("fecha").value;
+    let inicio=convertir24(
+        document.getElementById("inicio").value,
+        document.getElementById("inicioAmPm").value
+    );
+    let fin=convertir24(
+        document.getElementById("fin").value,
+        document.getElementById("finAmPm").value
+    );
+    let tipo=parseFloat(document.getElementById("tipo").value);
+
+    if(!fecha||!inicio||!fin){ alert("Complete los campos"); return; }
+
+    let horas=calcularHoras(inicio,fin);
+    let valorHora=horaOrdinaria(salario)*tipo;
+    let total=horas*valorHora;
+
+    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+
+    historial.push({
+        id:Date.now(),
         fecha,
-        horas: horasTrabajadas.toFixed(2),
-        tipo: tipo === 1.35 ? "Regular 35%" : "Doble 100%",
-        total: total.toFixed(2)
-    };
+        horas:horas,
+        tipo:tipo===1.35?"Regular":"Doble",
+        total:total
+    });
 
-    let historial = JSON.parse(localStorage.getItem("horasExtras")) || [];
-    historial.push(registro);
-    localStorage.setItem("horasExtras", JSON.stringify(historial));
+    localStorage.setItem("datos",JSON.stringify(historial));
+    mostrarHistorial();
+}
 
+function eliminar(id){
+    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+    historial=historial.filter(r=>r.id!==id);
+    localStorage.setItem("datos",JSON.stringify(historial));
     mostrarHistorial();
 }
 
 function mostrarHistorial(){
-    const historial = JSON.parse(localStorage.getItem("horasExtras")) || [];
-    const tabla = document.getElementById("historial");
-    tabla.innerHTML = "";
-    let sumaTotal = 0;
 
-    historial.forEach(item => {
-        sumaTotal += parseFloat(item.total);
-        tabla.innerHTML += `
+    let filtro=document.getElementById("filtroMes").value;
+    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+    let tabla=document.getElementById("tabla");
+    tabla.innerHTML="";
+
+    let total=0, reg=0, dob=0;
+
+    historial.forEach(r=>{
+
+        if(filtro && !r.fecha.startsWith(filtro)) return;
+
+        total+=r.total;
+        if(r.tipo==="Regular") reg+=r.horas;
+        else dob+=r.horas;
+
+        tabla.innerHTML+=`
         <tr>
-            <td>${item.fecha}</td>
-            <td>${item.horas}</td>
-            <td>${item.tipo}</td>
-            <td>RD$ ${item.total}</td>
+        <td>${r.fecha}</td>
+        <td>${r.horas.toFixed(2)}</td>
+        <td>${r.tipo}</td>
+        <td>${formatoRD(r.total)}</td>
+        <td><button onclick="eliminar(${r.id})">Eliminar</button></td>
         </tr>`;
     });
 
-    document.getElementById("total").innerText = 
-        "Total acumulado: RD$ " + sumaTotal.toFixed(2);
+    document.getElementById("totalPagar").innerText=formatoRD(total);
+    document.getElementById("totalRegular").innerText=reg.toFixed(2);
+    document.getElementById("totalDoble").innerText=dob.toFixed(2);
 }
 
-function limpiarHistorial(){
-    localStorage.removeItem("horasExtras");
-    mostrarHistorial();
+function exportarExcel(){
+
+    let historial=JSON.parse(localStorage.getItem("datos"))||[];
+    let contenido="Fecha,Horas,Tipo,Monto\n";
+
+    historial.forEach(r=>{
+        contenido+=`${r.fecha},${r.horas},${r.tipo},${r.total}\n`;
+    });
+
+    let blob=new Blob([contenido],{type:"text/csv;charset=utf-8;"});
+    let link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download="horas_extras.csv";
+    link.click();
 }
 
 mostrarHistorial();
+
 </script>
 
 </body>
