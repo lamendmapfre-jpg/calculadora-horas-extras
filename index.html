@@ -2,41 +2,94 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Calculadora Horas Extras</title>
+<title>Sistema Profesional de Horas Extras</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
-    font-family: Arial;
-    background:#1f2937;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#0f172a,#1e293b);
+    margin:0;
     padding:20px;
 }
 .container{
-    max-width:900px;
+    max-width:1100px;
     margin:auto;
     background:white;
     padding:25px;
-    border-radius:10px;
+    border-radius:12px;
 }
+h2{margin-top:0}
+
 .grid{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
     gap:15px;
 }
+
 select,input,button{
     padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
 }
+
 button{
     background:#2563eb;
     color:white;
     border:none;
     cursor:pointer;
-}
-button:hover{ background:#1d4ed8; }
-.resultado{
-    margin-top:15px;
     font-weight:bold;
-    font-size:18px;
+}
+button:hover{background:#1d4ed8;}
+
+.dashboard{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
+    margin:25px 0;
+}
+
+.card{
+    background:#f1f5f9;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+}
+.card h3{
+    margin:5px 0;
+    font-size:15px;
+}
+.card div{
+    font-size:20px;
+    font-weight:bold;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+th,td{
+    padding:8px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
+}
+th{background:#f8fafc;}
+
+.delete-btn{
+    background:#dc2626;
+}
+.delete-btn:hover{
+    background:#b91c1c;
+}
+.resultado{
+    margin-top:10px;
+    font-weight:bold;
+}
+.actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:10px;
 }
 </style>
 </head>
@@ -44,13 +97,18 @@ button:hover{ background:#1d4ed8; }
 
 <div class="container">
 
-<h2>Calculadora Horas Extras</h2>
+<h2>Sistema Profesional de Horas Extras</h2>
 
 <div class="grid">
 
 <div>
 <label>Salario Mensual</label>
 <input type="number" id="salario" value="29000">
+</div>
+
+<div>
+<label>Fecha</label>
+<input type="date" id="fecha">
 </div>
 
 <div>
@@ -79,10 +137,51 @@ button:hover{ background:#1d4ed8; }
 <option>PM</option>
 </select>
 
-<br><br>
+<div class="actions">
 <button onclick="calcular()">Calcular</button>
+<button onclick="guardar()">Guardar</button>
+</div>
 
 <div class="resultado" id="resultado"></div>
+
+<hr>
+
+<label>Filtrar por mes</label>
+<input type="month" id="filtroMes" onchange="mostrarHistorial()">
+
+<div class="dashboard">
+<div class="card">
+<h3>Total a Pagar</h3>
+<div id="totalPagar">RD$ 0.00</div>
+</div>
+<div class="card">
+<h3>Total Horas</h3>
+<div id="totalHoras">0</div>
+</div>
+<div class="card">
+<h3>Horas Regulares</h3>
+<div id="horasRegulares">0</div>
+</div>
+<div class="card">
+<h3>Horas Dobles</h3>
+<div id="horasDobles">0</div>
+</div>
+</div>
+
+<h3>Historial</h3>
+
+<table>
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Horas</th>
+<th>Tipo</th>
+<th>Monto</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
 
 </div>
 
@@ -101,6 +200,8 @@ inicioMin.innerHTML+=`<option value="${m}">${m}</option>`;
 finMin.innerHTML+=`<option value="${m}">${m}</option>`;
 }
 
+let ultimoCalculo=null;
+
 function convertir24(h,m,ampm){
 h=parseInt(h);
 if(ampm==="PM" && h<12) h+=12;
@@ -117,33 +218,99 @@ function calcular(){
 let salario=parseFloat(document.getElementById("salario").value);
 let tipo=parseFloat(document.getElementById("tipo").value);
 
-let inicio=convertir24(
-inicioHora.value,
-inicioMin.value,
-inicioAmPm.value
-);
-
-let fin=convertir24(
-finHora.value,
-finMin.value,
-finAmPm.value
-);
+let inicio=convertir24(inicioHora.value,inicioMin.value,inicioAmPm.value);
+let fin=convertir24(finHora.value,finMin.value,finAmPm.value);
 
 let i=new Date("1970-01-01T"+inicio);
 let f=new Date("1970-01-01T"+fin);
 
-if(f<i){
-f.setDate(f.getDate()+1);
-}
+if(f<i){ f.setDate(f.getDate()+1); }
 
 let horas=(f-i)/(1000*60*60);
-
 let total=horas*horaOrdinaria(salario)*tipo;
 
+ultimoCalculo={
+horas,
+tipoTexto:tipo===1.35?"Regular":"Doble",
+total
+};
+
 document.getElementById("resultado").innerText=
-"Horas trabajadas: "+horas.toFixed(2)+
-" | Total: "+total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
+"Horas: "+horas.toFixed(2)+" | Total: "+
+total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
 }
+
+function guardar(){
+
+if(!ultimoCalculo){
+alert("Primero calcule");
+return;
+}
+
+let fecha=document.getElementById("fecha").value;
+if(!fecha){
+alert("Seleccione fecha");
+return;
+}
+
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
+
+datos.push({
+id:Date.now(),
+fecha,
+horas:ultimoCalculo.horas,
+tipo:ultimoCalculo.tipoTexto,
+total:ultimoCalculo.total
+});
+
+localStorage.setItem("datos",JSON.stringify(datos));
+mostrarHistorial();
+}
+
+function eliminar(id){
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
+datos=datos.filter(r=>r.id!==id);
+localStorage.setItem("datos",JSON.stringify(datos));
+mostrarHistorial();
+}
+
+function mostrarHistorial(){
+
+let filtro=document.getElementById("filtroMes").value;
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
+
+let tabla=document.getElementById("tabla");
+tabla.innerHTML="";
+
+let total=0,totalHoras=0,reg=0,dob=0;
+
+datos.forEach(r=>{
+
+if(filtro && !r.fecha.startsWith(filtro)) return;
+
+total+=r.total;
+totalHoras+=r.horas;
+
+if(r.tipo==="Regular") reg+=r.horas;
+else dob+=r.horas;
+
+tabla.innerHTML+=`
+<tr>
+<td>${r.fecha}</td>
+<td>${r.horas.toFixed(2)}</td>
+<td>${r.tipo}</td>
+<td>${r.total.toLocaleString("es-DO",{style:"currency",currency:"DOP"})}</td>
+<td><button class="delete-btn" onclick="eliminar(${r.id})">Eliminar</button></td>
+</tr>`;
+});
+
+totalPagar.innerText=total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
+totalHoras.innerText=totalHoras.toFixed(2);
+horasRegulares.innerText=reg.toFixed(2);
+horasDobles.innerText=dob.toFixed(2);
+}
+
+mostrarHistorial();
 
 </script>
 
