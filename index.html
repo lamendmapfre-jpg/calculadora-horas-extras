@@ -2,284 +2,317 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<title>Sistema Profesional de Horas Extras</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculadora de Horas RD</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-padding:20px;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#0f172a,#1e293b);
+    margin:0;
+    padding:20px;
 }
-.card{
-background:#1e293b;
-padding:20px;
-border-radius:12px;
-margin-bottom:20px;
+.container{
+    max-width:1100px;
+    margin:auto;
+    background:white;
+    padding:25px;
+    border-radius:12px;
 }
-input,select,button{
-padding:8px;
-margin:5px;
-border-radius:6px;
-border:none;
+h2{margin-top:0}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
 }
+
+select,input,button{
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+
 button{
-background:#2563eb;
-color:white;
-cursor:pointer;
+    background:#2563eb;
+    color:white;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
 }
-button:hover{
-background:#1d4ed8;
+button:hover{background:#1d4ed8;}
+
+.dashboard{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:15px;
+    margin:25px 0;
 }
+
+.card{
+    background:#f1f5f9;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+}
+.card h3{
+    margin:5px 0;
+    font-size:15px;
+}
+.card div{
+    font-size:20px;
+    font-weight:bold;
+}
+
 table{
-width:100%;
-border-collapse:collapse;
-margin-top:15px;
+    width:100%;
+    border-collapse:collapse;
 }
 th,td{
-padding:8px;
-border-bottom:1px solid #334155;
-text-align:center;
+    padding:8px;
+    border-bottom:1px solid #ddd;
+    text-align:center;
 }
-.dashboard{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:15px;
+th{background:#f8fafc;}
+
+.delete-btn{
+    background:#dc2626;
 }
-.stat{
-background:#334155;
-padding:15px;
-border-radius:10px;
-text-align:center;
+.delete-btn:hover{
+    background:#b91c1c;
+}
+.resultado{
+    margin-top:10px;
+    font-weight:bold;
+}
+.actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:10px;
 }
 </style>
 </head>
 <body>
 
-<h2>Calculadora de Horas - República Dominicana</h2>
+<div class="container">
 
-<div class="card" id="loginCard">
-<h3>Login</h3>
-<input type="text" id="usuario" placeholder="Nombre de usuario">
-<button onclick="login()">Entrar</button>
+<h2>Sistema Profesional de Horas Extras</h2>
+
+<div class="grid">
+
+<div>
+<label>Salario Mensual</label>
+<input type="number" id="salario" value="29000">
 </div>
 
-<div id="app" style="display:none">
-
-<div class="card">
-<h3>Registrar Jornada</h3>
-
+<div>
+<label>Fecha</label>
 <input type="date" id="fecha">
+</div>
 
-<input type="time" id="entrada">
-<select id="entradaPeriodo">
+<div>
+<label>Tipo</label>
+<select id="tipo">
+<option value="1.35">Extra Regular (35%)</option>
+<option value="2">Extra Doble (100%)</option>
+</select>
+</div>
+
+</div>
+
+<h3>Hora Inicio</h3>
+<select id="inicioHora"></select>
+<select id="inicioMin"></select>
+<select id="inicioAmPm">
 <option>AM</option>
 <option>PM</option>
 </select>
 
-<input type="time" id="salida">
-<select id="salidaPeriodo">
+<h3>Hora Fin</h3>
+<select id="finHora"></select>
+<select id="finMin"></select>
+<select id="finAmPm">
 <option>AM</option>
 <option>PM</option>
 </select>
 
-<input type="number" id="pagoHora" placeholder="Pago por hora">
-
+<div class="actions">
 <button onclick="calcular()">Calcular</button>
+<button onclick="guardar()">Guardar</button>
 </div>
 
-<div class="card">
-<h3>Dashboard</h3>
+<div class="resultado" id="resultado"></div>
+
+<hr>
+
+<label>Filtrar por mes</label>
+<input type="month" id="filtroMes" onchange="mostrarHistorial()">
+
 <div class="dashboard">
-<div class="stat">Horas Normales<br><span id="totalNormales">0</span></div>
-<div class="stat">Horas Extras<br><span id="totalExtras">0</span></div>
-<div class="stat">Horas Nocturnas<br><span id="totalNocturnas">0</span></div>
-<div class="stat">Total a Pagar<br>RD$ <span id="totalPagar">0</span></div>
-</div>
-</div>
-
 <div class="card">
-<h3>Historial</h3>
-<select id="filtroMes" onchange="render()">
-<option value="">Todos los meses</option>
-<option value="01">Enero</option>
-<option value="02">Febrero</option>
-<option value="03">Marzo</option>
-<option value="04">Abril</option>
-<option value="05">Mayo</option>
-<option value="06">Junio</option>
-<option value="07">Julio</option>
-<option value="08">Agosto</option>
-<option value="09">Septiembre</option>
-<option value="10">Octubre</option>
-<option value="11">Noviembre</option>
-<option value="12">Diciembre</option>
-</select>
+<h3>Total a Pagar</h3>
+<div id="totalPagar">RD$ 0.00</div>
+</div>
+<div class="card">
+<h3>Total Horas</h3>
+<div id="totalHoras">0</div>
+</div>
+<div class="card">
+<h3>Horas Regulares</h3>
+<div id="horasRegulares">0</div>
+</div>
+<div class="card">
+<h3>Horas Dobles</h3>
+<div id="horasDobles">0</div>
+</div>
+</div>
 
-<button onclick="exportarExcel()">Exportar Excel</button>
-<button onclick="exportarPDF()">Generar PDF</button>
+<h3>Historial</h3>
 
 <table>
 <thead>
 <tr>
 <th>Fecha</th>
-<th>Normales</th>
-<th>Extras</th>
-<th>Nocturnas</th>
-<th>Total RD$</th>
-<th>Eliminar</th>
+<th>Horas</th>
+<th>Tipo</th>
+<th>Monto</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="tabla"></tbody>
 </table>
-</div>
 
 </div>
 
 <script>
 
-let usuarioActual=""
-let registros=[]
-
-function login(){
-usuarioActual=document.getElementById("usuario").value
-if(!usuarioActual) return alert("Ingrese usuario")
-document.getElementById("loginCard").style.display="none"
-document.getElementById("app").style.display="block"
-cargar()
+// Generar horas 1-12
+for(let i=1;i<=12;i++){
+inicioHora.innerHTML+=`<option value="${i}">${i}</option>`;
+finHora.innerHTML+=`<option value="${i}">${i}</option>`;
 }
 
-function convertir24(hora,periodo){
-let [h,m]=hora.split(":").map(Number)
-if(periodo==="PM" && h<12) h+=12
-if(periodo==="AM" && h===12) h=0
-return h + m/60
+// Generar minutos
+for(let i=0;i<60;i++){
+let m=i.toString().padStart(2,"0");
+inicioMin.innerHTML+=`<option value="${m}">${m}</option>`;
+finMin.innerHTML+=`<option value="${m}">${m}</option>`;
 }
 
-function esNocturna(h){
-return (h>=22 || h<6)
+let ultimoCalculo=null;
+
+function convertir24(h,m,ampm){
+h=parseInt(h);
+if(ampm==="PM" && h<12) h+=12;
+if(ampm==="AM" && h===12) h=0;
+return `${h.toString().padStart(2,"0")}:${m}:00`;
+}
+
+function horaOrdinaria(s){
+return s/(23.83*8);
 }
 
 function calcular(){
 
-let fecha=document.getElementById("fecha").value
-let entrada=convertir24(
-document.getElementById("entrada").value,
-document.getElementById("entradaPeriodo").value)
+let salario=parseFloat(document.getElementById("salario").value);
+let tipo=parseFloat(document.getElementById("tipo").value);
 
-let salida=convertir24(
-document.getElementById("salida").value,
-document.getElementById("salidaPeriodo").value)
+let inicio=convertir24(inicioHora.value,inicioMin.value,inicioAmPm.value);
+let fin=convertir24(finHora.value,finMin.value,finAmPm.value);
 
-let pago=Number(document.getElementById("pagoHora").value)
+let i=new Date("1970-01-01T"+inicio);
+let f=new Date("1970-01-01T"+fin);
 
-if(salida<=entrada) salida+=24
+if(f<i){ f.setDate(f.getDate()+1); }
 
-let totalHoras=salida-entrada
+let horas=(f-i)/(1000*60*60);
+let total=horas*horaOrdinaria(salario)*tipo;
 
-let normales=Math.min(8,totalHoras)
-let extras=Math.max(0,totalHoras-8)
-
-let nocturnas=0
-for(let h=entrada; h<salida; h+=0.25){
-if(esNocturna(h%24)) nocturnas+=0.25
-}
-
-let total=0
-total+=normales*pago
-total+=extras*pago*1.35
-total+=nocturnas*pago*0.15
-
-registros.push({
-fecha,
-normales,
-extras,
-nocturnas,
+ultimoCalculo={
+horas,
+tipoTexto:tipo===1.35?"Regular":"Doble",
 total
-})
+};
 
-guardar()
-render()
+document.getElementById("resultado").innerText=
+"Horas: "+horas.toFixed(2)+" | Total: "+
+total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
 }
 
 function guardar(){
-localStorage.setItem("registros_"+usuarioActual,JSON.stringify(registros))
+
+if(!ultimoCalculo){
+alert("Primero calcule");
+return;
 }
 
-function cargar(){
-registros=JSON.parse(localStorage.getItem("registros_"+usuarioActual))||[]
-render()
+let fecha=document.getElementById("fecha").value;
+if(!fecha){
+alert("Seleccione fecha");
+return;
 }
 
-function eliminar(i){
-registros.splice(i,1)
-guardar()
-render()
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
+
+datos.push({
+id:Date.now(),
+fecha,
+horas:ultimoCalculo.horas,
+tipo:ultimoCalculo.tipoTexto,
+total:ultimoCalculo.total
+});
+
+localStorage.setItem("datos",JSON.stringify(datos));
+mostrarHistorial();
 }
 
-function render(){
+function eliminar(id){
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
+datos=datos.filter(r=>r.id!==id);
+localStorage.setItem("datos",JSON.stringify(datos));
+mostrarHistorial();
+}
 
-let filtro=document.getElementById("filtroMes").value
-let tabla=document.getElementById("tabla")
-tabla.innerHTML=""
+function mostrarHistorial(){
 
-let tNorm=0,tExt=0,tNoc=0,tPag=0
+let filtro=document.getElementById("filtroMes").value;
+let datos=JSON.parse(localStorage.getItem("datos"))||[];
 
-registros.forEach((r,i)=>{
-if(filtro && r.fecha.split("-")[1]!==filtro) return
+let tabla=document.getElementById("tabla");
+tabla.innerHTML="";
 
-tNorm+=r.normales
-tExt+=r.extras
-tNoc+=r.nocturnas
-tPag+=r.total
+let total=0,totalHoras=0,reg=0,dob=0;
+
+datos.forEach(r=>{
+
+if(filtro && !r.fecha.startsWith(filtro)) return;
+
+total+=r.total;
+totalHoras+=r.horas;
+
+if(r.tipo==="Regular") reg+=r.horas;
+else dob+=r.horas;
 
 tabla.innerHTML+=`
 <tr>
-<td>${new Date(r.fecha).toLocaleDateString("es-DO")}</td>
-<td>${r.normales.toFixed(2)}</td>
-<td>${r.extras.toFixed(2)}</td>
-<td>${r.nocturnas.toFixed(2)}</td>
-<td>${r.total.toFixed(2)}</td>
-<td><button onclick="eliminar(${i})">X</button></td>
-</tr>`
-})
+<td>${r.fecha}</td>
+<td>${r.horas.toFixed(2)}</td>
+<td>${r.tipo}</td>
+<td>${r.total.toLocaleString("es-DO",{style:"currency",currency:"DOP"})}</td>
+<td><button class="delete-btn" onclick="eliminar(${r.id})">Eliminar</button></td>
+</tr>`;
+});
 
-document.getElementById("totalNormales").innerText=tNorm.toFixed(2)
-document.getElementById("totalExtras").innerText=tExt.toFixed(2)
-document.getElementById("totalNocturnas").innerText=tNoc.toFixed(2)
-document.getElementById("totalPagar").innerText=tPag.toFixed(2)
-
+totalPagar.innerText=total.toLocaleString("es-DO",{style:"currency",currency:"DOP"});
+totalHoras.innerText=totalHoras.toFixed(2);
+horasRegulares.innerText=reg.toFixed(2);
+horasDobles.innerText=dob.toFixed(2);
 }
 
-function exportarExcel(){
-
-let ws=XLSX.utils.json_to_sheet(registros)
-let wb=XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(wb,ws,"Historial")
-XLSX.writeFile(wb,"Historial_Horas.xlsx")
-}
-
-async function exportarPDF(){
-const { jsPDF } = window.jspdf
-const doc=new jsPDF()
-
-doc.text("Reporte de Horas",20,20)
-
-let y=30
-registros.forEach(r=>{
-doc.text(
-`${new Date(r.fecha).toLocaleDateString("es-DO")} - Total RD$ ${r.total.toFixed(2)}`,
-20,y)
-y+=10
-})
-
-doc.save("Reporte_Horas.pdf")
-}
+mostrarHistorial();
 
 </script>
+
 </body>
 </html>
