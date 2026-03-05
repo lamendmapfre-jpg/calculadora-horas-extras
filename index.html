@@ -1,145 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculadora de Horas RD</title>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<style>
-body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-padding:20px;
-}
-.card{
-background:#1e293b;
-padding:20px;
-border-radius:12px;
-margin-bottom:20px;
-}
-input,select,button{
-padding:8px;
-margin:5px;
-border-radius:6px;
-border:none;
-}
-button{
-background:#2563eb;
-color:white;
-cursor:pointer;
-}
-button:hover{
-background:#1d4ed8;
-}
-table{
-width:100%;
-border-collapse:collapse;
-margin-top:15px;
-}
-th,td{
-padding:8px;
-border-bottom:1px solid #334155;
-text-align:center;
-}
-.dashboard{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:15px;
-}
-.stat{
-background:#334155;
-padding:15px;
-border-radius:10px;
-text-align:center;
-}
-</style>
-</head>
-<body>
-
-<h2>Calculadora de Horas - República Dominicana</h2>
-
-<div class="card" id="loginCard">
-<h3>Login</h3>
-<input type="text" id="usuario" placeholder="Nombre de usuario">
-<button onclick="login()">Entrar</button>
-</div>
-
-<div id="app" style="display:none">
-
-<div class="card">
-<h3>Registrar Jornada</h3>
-
-<input type="date" id="fecha">
-
-<input type="time" id="entrada">
-<select id="entradaPeriodo">
-<option>AM</option>
-<option>PM</option>
-</select>
-
-<input type="time" id="salida">
-<select id="salidaPeriodo">
-<option>AM</option>
-<option>PM</option>
-</select>
-
-<input type="number" id="pagoHora" placeholder="Pago por hora">
-
-<button onclick="calcular()">Calcular</button>
-</div>
-
-<div class="card">
-<h3>Dashboard</h3>
-<div class="dashboard">
-<div class="stat">Horas Normales<br><span id="totalNormales">0</span></div>
-<div class="stat">Horas Extras<br><span id="totalExtras">0</span></div>
-<div class="stat">Horas Nocturnas<br><span id="totalNocturnas">0</span></div>
-<div class="stat">Total a Pagar<br>RD$ <span id="totalPagar">0</span></div>
-</div>
-</div>
-
-<div class="card">
-<h3>Historial</h3>
-<select id="filtroMes" onchange="render()">
-<option value="">Todos los meses</option>
-<option value="01">Enero</option>
-<option value="02">Febrero</option>
-<option value="03">Marzo</option>
-<option value="04">Abril</option>
-<option value="05">Mayo</option>
-<option value="06">Junio</option>
-<option value="07">Julio</option>
-<option value="08">Agosto</option>
-<option value="09">Septiembre</option>
-<option value="10">Octubre</option>
-<option value="11">Noviembre</option>
-<option value="12">Diciembre</option>
-</select>
-
-<button onclick="exportarExcel()">Exportar Excel</button>
-<button onclick="exportarPDF()">Generar PDF</button>
-
-<table>
-<thead>
-<tr>
-<th>Fecha</th>
-<th>Normales</th>
-<th>Extras</th>
-<th>Nocturnas</th>
-<th>Total RD$</th>
-<th>Eliminar</th>
-</tr>
-</thead>
-<tbody id="tabla"></tbody>
-</table>
-</div>
-
-</div>
-
 <script>
 
 let usuarioActual=""
@@ -148,51 +6,59 @@ let registros=[]
 function login(){
 usuarioActual=document.getElementById("usuario").value
 if(!usuarioActual) return alert("Ingrese usuario")
+
 document.getElementById("loginCard").style.display="none"
 document.getElementById("app").style.display="block"
+
 cargar()
-}
-
-function convertir24(hora,periodo){
-let [h,m]=hora.split(":").map(Number)
-if(periodo==="PM" && h<12) h+=12
-if(periodo==="AM" && h===12) h=0
-return h + m/60
-}
-
-function esNocturna(h){
-return (h>=22 || h<6)
 }
 
 function calcular(){
 
 let fecha=document.getElementById("fecha").value
-let entrada=convertir24(
-document.getElementById("entrada").value,
-document.getElementById("entradaPeriodo").value)
-
-let salida=convertir24(
-document.getElementById("salida").value,
-document.getElementById("salidaPeriodo").value)
-
+let entrada=document.getElementById("entrada").value
+let salida=document.getElementById("salida").value
 let pago=Number(document.getElementById("pagoHora").value)
 
-if(salida<=entrada) salida+=24
-
-let totalHoras=salida-entrada
-
-let normales=Math.min(8,totalHoras)
-let extras=Math.max(0,totalHoras-8)
-
-let nocturnas=0
-for(let h=entrada; h<salida; h+=0.25){
-if(esNocturna(h%24)) nocturnas+=0.25
+if(!fecha || !entrada || !salida || !pago){
+alert("Complete todos los campos")
+return
 }
 
-let total=0
-total+=normales*pago
-total+=extras*pago*1.35
-total+=nocturnas*pago*0.15
+let inicio=new Date(fecha+"T"+entrada)
+let fin=new Date(fecha+"T"+salida)
+
+if(fin<=inicio){
+fin.setDate(fin.getDate()+1)
+}
+
+let horasTotales=(fin-inicio)/3600000
+
+let normales=Math.min(8,horasTotales)
+let extras=Math.max(0,horasTotales-8)
+
+let nocturnas=0
+
+let cursor=new Date(inicio)
+
+while(cursor<fin){
+
+let h=cursor.getHours()
+
+if(h>=22 || h<6){
+nocturnas+=1/60
+}
+
+cursor.setMinutes(cursor.getMinutes()+1)
+}
+
+nocturnas=nocturnas*60
+
+let pagoNormales=normales*pago
+let pagoExtras=extras*(pago*1.35)
+let pagoNocturno=nocturnas*(pago*0.15)
+
+let total=pagoNormales+pagoExtras+pagoNocturno
 
 registros.push({
 fecha,
@@ -223,14 +89,15 @@ render()
 
 function render(){
 
-let filtro=document.getElementById("filtroMes").value
 let tabla=document.getElementById("tabla")
 tabla.innerHTML=""
 
-let tNorm=0,tExt=0,tNoc=0,tPag=0
+let tNorm=0
+let tExt=0
+let tNoc=0
+let tPag=0
 
 registros.forEach((r,i)=>{
-if(filtro && r.fecha.split("-")[1]!==filtro) return
 
 tNorm+=r.normales
 tExt+=r.extras
@@ -245,7 +112,8 @@ tabla.innerHTML+=`
 <td>${r.nocturnas.toFixed(2)}</td>
 <td>${r.total.toFixed(2)}</td>
 <td><button onclick="eliminar(${i})">X</button></td>
-</tr>`
+</tr>
+`
 })
 
 document.getElementById("totalNormales").innerText=tNorm.toFixed(2)
@@ -255,31 +123,4 @@ document.getElementById("totalPagar").innerText=tPag.toFixed(2)
 
 }
 
-function exportarExcel(){
-
-let ws=XLSX.utils.json_to_sheet(registros)
-let wb=XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(wb,ws,"Historial")
-XLSX.writeFile(wb,"Historial_Horas.xlsx")
-}
-
-async function exportarPDF(){
-const { jsPDF } = window.jspdf
-const doc=new jsPDF()
-
-doc.text("Reporte de Horas",20,20)
-
-let y=30
-registros.forEach(r=>{
-doc.text(
-`${new Date(r.fecha).toLocaleDateString("es-DO")} - Total RD$ ${r.total.toFixed(2)}`,
-20,y)
-y+=10
-})
-
-doc.save("Reporte_Horas.pdf")
-}
-
 </script>
-</body>
-</html>
